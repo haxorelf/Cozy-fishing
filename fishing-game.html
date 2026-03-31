@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎣 Cozy Cove — A Fishing Game</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Luckiest+Guy&display=swap');
+
+  :root {
+    --sky:    #c9e8f5;
+    --water:  #4a9bbe;
+    --deep:   #2d6e8a;
+    --shore:  #8bc34a;
+    --sand:   #d4a96a;
+    --ui-bg:  rgba(255,255,255,0.88);
+    --coin:   #f5c842;
+    --text:   #2c3e50;
+    --green:  #5cb85c;
+    --red:    #e05c5c;
+    --accent: #ff8c42;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--sky);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  #game-wrapper {
+    position: relative;
+    width: 800px;
+    max-width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── CANVAS ── */
+  #gameCanvas {
+    display: block;
+    width: 100%;
+    flex: 1;
+    cursor: pointer;
+  }
+
+  /* ── HUD ── */
+  #hud {
+    position: absolute;
+    top: 12px; left: 12px; right: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+  }
+
+  .hud-box {
+    background: var(--ui-bg);
+    border-radius: 14px;
+    padding: 8px 14px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+    pointer-events: all;
+  }
+
+  #coins-display {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+  }
+  #coins-display span { color: #d4a017; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 22px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: transform .1s, box-shadow .1s;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+
+  .btn-green  { background: var(--green);  color: #fff; }
+  .btn-blue   { background: var(--water);  color: #fff; }
+  .btn-orange { background: var(--accent); color: #fff; }
+  .btn-red    { background: var(--red);    color: #fff; }
+  .btn-coin   { background: var(--coin);   color: #7a5c00; }
+
+  /* ── PANELS ── */
+  .panel {
+    position: absolute;
+    background: var(--ui-bg);
+    border-radius: 20px;
+    padding: 18px 20px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    display: none;
+  }
+  .panel.active { display: block; }
+  .panel h2 {
+    font-family: 'Luckiest Guy', cursive;
+    font-size: 22px;
+    color: var(--text);
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+
+  /* ── CAST BUTTON ── */
+  #cast-btn {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+    padding: 14px 40px;
+    border-radius: 50px;
+    font-family: 'Luckiest Guy', cursive;
+    letter-spacing: 2px;
+  }
+
+  /* ── POWER METER ── */
+  #power-wrap {
+    position: absolute;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    text-align: center;
+    display: none;
+  }
+  #power-wrap label { font-weight: 700; font-size: 13px; color: var(--text); }
+  #power-bar-bg {
+    width: 100%;
+    height: 16px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 8px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  #power-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #5cb85c, #f5c842, #e05c5c);
+    border-radius: 8px;
+    transition: width .05s linear;
+  }
+
+  /* ── TENSION BAR ── */
+  #reel-panel {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 320px;
+    text-align: center;
+    display: none;
+  }
+  #reel-panel label { font-weight: 800; font-size: 14px; color: var(--text); }
+  #tension-bg {
+    width: 100%;
+    height: 22px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 11px;
+    margin: 6px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  #tension-fill {
+    height: 100%;
+    width: 50%;
+    background: var(--green);
+    border-radius: 11px;
+    transition: width .08s, background .2s;
+  }
+  #tension-zones {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    pointer-events: none;
+  }
+  .zone { flex: 1; border-right: 1px solid rgba(255,255,255,0.3); }
+  .zone:last-child { border: none; }
+
+  #reel-hint { font-size: 13px; color: #666; margin-top: 4px; }
+  #fish-caught-name {
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--deep);
+  }
+
+  /* ── REEL BUTTON ── */
+  #reel-btn {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    font-size: 17px;
+    padding: 13px 36px;
+    border-radius: 50px;
+    font-family: 'Luckiest Guy', cursive;
+    letter-spacing: 1px;
+  }
+
+  /* ── STATUS MESSAGE ── */
+  #status-msg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255,255,255,0.95);
+    border-radius: 16px;
+    padding: 14px 26px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  #status-msg.show { opacity: 1; }
+
+  /* ── INVENTORY PANEL ── */
+  #inv-panel {
+    top: 60px; right: 12px;
+    width: 220px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  #inv-list { list-style: none; }
+  #inv-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.07);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  #inv-list li:last-child { border-bottom: none; }
+  #inv-list .fish-val { color: #d4a017; font-size: 12px; }
+  #inv-total { margin-top: 10px; font-weight: 700; font-size: 13px; color: #555; }
+  #sell-all-btn { margin-top: 10px; width: 100%; }
+
+  /* ── SHOP PANEL ── */
+  #shop-panel {
+    top: 60px; left: 12px;
+    width: 220px;
+  }
+  .upgrade-item {
+    background: rgba(74,155,190,0.08);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .upgrade-item h3 { font-size: 14px; font-weight: 800; color: var(--text); }
+  .upgrade-item p  { font-size: 12px; color: #666; margin: 2px 0 8px; }
+  .upgrade-item .cost { font-size: 12px; font-weight: 700; color: #d4a017; }
+  .upgrade-btn { width: 100%; padding: 7px; font-size: 13px; margin-top: 6px; }
+
+  /* ── CATCH POPUP ── */
+  #catch-popup {
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    width: 280px;
+    text-align: center;
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+    opacity: 0;
+  }
+  #catch-popup.active {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  #catch-popup .fish-emoji { font-size: 60px; display: block; margin: 8px 0; }
+  #catch-popup .fish-name { font-family: 'Luckiest Guy', cursive; font-size: 26px; color: var(--deep); }
+  #catch-popup .fish-info { font-size: 14px; color: #555; margin: 6px 0 12px; }
+  #catch-popup .fish-worth { font-size: 17px; font-weight: 800; color: #d4a017; }
+
+  /* ── TOP BUTTONS ── */
+  #top-btns {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+    pointer-events: all;
+  }
+  #top-btns .btn { padding: 8px 14px; font-size: 13px; }
+
+  /* ── SCROLLBAR ── */
+  #inv-panel::-webkit-scrollbar { width: 6px; }
+  #inv-panel::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
+
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-box" id="coins-display">🪙 <span id="coin-count">0</span></div>
+  </div>
+
+  <!-- Top buttons -->
+  <div id="top-btns">
+    <button class="btn btn-blue" id="inv-btn">🎒 Bag</button>
+    <button class="btn btn-orange" id="shop-btn">🛒 Shop</button>
+  </div>
+
+  <!-- Power meter -->
+  <div id="power-wrap">
+    <label>⚡ Cast Power</label>
+    <div id="power-bar-bg"><div id="power-bar"></div></div>
+  </div>
+
+  <!-- Reel panel -->
+  <div id="reel-panel">
+    <span id="fish-caught-name">🐟 A fish is on the line!</span>
+    <label>🎣 Tension</label>
+    <div id="tension-bg">
+      <div id="tension-zones">
+        <div class="zone"></div><div class="zone"></div><div class="zone"></div>
+        <div class="zone"></div><div class="zone"></div>
+      </div>
+      <div id="tension-fill"></div>
+    </div>
+    <div id="reel-hint">Hold REEL to pull — don't break the line!</div>
+  </div>
+
+  <!-- Cast / Reel button -->
+  <button class="btn btn-green" id="cast-btn">🎣 CAST</button>
+  <button class="btn btn-blue"  id="reel-btn">🌀 REEL</button>
+
+  <!-- Status message -->
+  <div id="status-msg"></div>
+
+  <!-- Catch popup -->
+  <div class="panel" id="catch-popup">
+    <span class="fish-emoji" id="popup-emoji">🐟</span>
+    <div class="fish-name" id="popup-name">Fish!</div>
+    <div class="fish-info" id="popup-info">Weight: 0.0 kg</div>
+    <div class="fish-worth" id="popup-worth">+0 🪙</div>
+    <button class="btn btn-green" id="popup-ok" style="margin-top:14px;width:100%">Keep it!</button>
+  </div>
+
+  <!-- Inventory panel -->
+  <div class="panel" id="inv-panel">
+    <h2>🎒 Catch Bag</h2>
+    <ul id="inv-list"></ul>
+    <div id="inv-total"></div>
+    <button class="btn btn-coin sell-all-btn" id="sell-all-btn" style="width:100%;margin-top:10px">💰 Sell All</button>
+  </div>
+
+  <!-- Shop panel -->
+  <div class="panel" id="shop-panel">
+    <h2>🛒 Gear Shop</h2>
+    <div id="upgrade-list"></div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIGURATION  — tweak everything here!
+// ═══════════════════════════════════════════════
+const CONFIG = {
+  biteDelayMin: 2000,   // ms
+  biteDelayMax: 7000,
+  hookWindowMs: 900,    // timing window to hook
+  tensionDecayRate: 0.25,  // per frame when not reeling
+  tensionBuildRate: 0.55,  // per frame when reeling
+  tensionBreakThreshold: 92, // line breaks above this %
+  tensionEscapeThreshold: 8, // fish escapes below this %
+  reelProgressPerFrame: 0.9, // % per frame while reeling in sweet spot
+};
+
+// ═══════════════════════════════════════════════
+//  FISH DATABASE
+// ═══════════════════════════════════════════════
+const FISH_DB = [
+  { name:"Tiny Minnow",    emoji:"🐟", rarity:0.35, weightMin:0.1, weightMax:0.4,  difficulty:0.2, value:5,   color:"#89c4e1" },
+  { name:"River Bass",     emoji:"🐠", rarity:0.30, weightMin:0.5, weightMax:1.5,  difficulty:0.4, value:15,  color:"#f4a261" },
+  { name:"Lake Trout",     emoji:"🐡", rarity:0.18, weightMin:1.5, weightMax:3.5,  difficulty:0.6, value:35,  color:"#8ecae6" },
+  { name:"Golden Carp",    emoji:"🐙", rarity:0.12, weightMin:3.0, weightMax:6.0,  difficulty:0.75,value:80,  color:"#f5c842" },
+  { name:"Legendary Koi",  emoji:"🦈", rarity:0.05, weightMin:6.0, weightMax:12.0, difficulty:0.9, value:200, color:"#c77dff" },
+];
+
+// ═══════════════════════════════════════════════
+//  UPGRADES
+// ═══════════════════════════════════════════════
+const UPGRADES = [
+  {
+    id:"rod", name:"Better Rod", emoji:"🎣",
+    desc:"Increases tension tolerance",
+    levels:[
+      { cost:50,  label:"Oak Rod",      bonus:"Break threshold +5" },
+      { cost:120, label:"Carbon Rod",   bonus:"Break threshold +10" },
+      { cost:300, label:"Pro Rod",      bonus:"Break threshold +15" },
+    ],
+    apply(lvl) { CONFIG.tensionBreakThreshold = 92 + lvl * 7; }
+  },
+  {
+    id:"reel", name:"Better Reel", emoji:"🌀",
+    desc:"Faster catch speed",
+    levels:[
+      { cost:60,  label:"Smooth Reel",  bonus:"Reel speed +0.3" },
+      { cost:150, label:"Turbo Reel",   bonus:"Reel speed +0.6" },
+      { cost:350, label:"Pro Reel",     bonus:"Reel speed +1.0" },
+    ],
+    apply(lvl) { CONFIG.reelProgressPerFrame = 0.9 + lvl * 0.35; }
+  },
+];
+
+// ═══════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════
+const state = {
+  coins: 0,
+  inventory: [],
+  upgradeLevels: { rod: 0, reel: 0 },
+  phase: "idle",        // idle | charging | casting | waiting | hooking | reeling | caught
+  power: 0,
+  powerDir: 1,
+  biteTimer: null,
+  bobberX: 0,
+  bobberY: 0,
+  bobberTarget: 0,
+  lineBreaking: false,
+  tension: 50,
+  reelProgress: 0,
+  activeFish: null,
+  isReeling: false,
+  hookTimeout: null,
+  waterAnim: 0,
+  ripples: [],
+};
+
+// ═══════════════════════════════════════════════
+//  CANVAS SETUP
+// ═══════════════════════════════════════════════
+const canvas = document.getElementById("gameCanvas");
+const ctx    = canvas.getContext("2d");
+
+const W = 800, H = 520;
+canvas.width  = W;
+canvas.height = H;
+
+// Fishing rod origin
+const ROD_X = 180, ROD_Y = 260;
+
+// ═══════════════════════════════════════════════
+//  DRAW SCENE
+// ═══════════════════════════════════════════════
+function drawScene() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0,0,0,H*0.45);
+  sky.addColorStop(0,"#a8d8ea");
+  sky.addColorStop(1,"#d4effa");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0,0,W,H*0.45);
+
+  // Clouds
+  drawCloud(ctx, 80,  60, 0.9);
+  drawCloud(ctx, 320, 40, 1.1);
+  drawCloud(ctx, 580, 70, 0.75);
+
+  // Shore / grass hill
+  ctx.fillStyle = "#7ab648";
+  ctx.beginPath();
+  ctx.moveTo(0, H*0.42);
+  ctx.bezierCurveTo(100, H*0.38, 200, H*0.40, W*0.38, H*0.45);
+  ctx.lineTo(W*0.38, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // Grass texture
+  ctx.fillStyle = "#8bc34a";
+  ctx.beginPath();
+  ctx.moveTo(0, H*0.44);
+  ctx.bezierCurveTo(80, H*0.40, 160, H*0.42, W*0.38, H*0.46);
+  ctx.lineTo(W*0.38, H*0.48);
+  ctx.lineTo(0, H*0.46);
+  ctx.closePath();
+  ctx.fill();
+
+  // Water body
+  const water = ctx.createLinearGradient(0, H*0.44, 0, H);
+  water.addColorStop(0,"#5db8d8");
+  water.addColorStop(0.4,"#3a91b0");
+  water.addColorStop(1,"#1e5f78");
+  ctx.fillStyle = water;
+  ctx.beginPath();
+  ctx.moveTo(W*0.35, H*0.45);
+  ctx.bezierCurveTo(W*0.5, H*0.42, W*0.7, H*0.43, W, H*0.44);
+  ctx.lineTo(W, H);
+  ctx.lineTo(W*0.35, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // Animated water shimmer
+  state.waterAnim += 0.03;
+  for(let i=0;i<8;i++){
+    const wx = W*0.4 + i*50 + Math.sin(state.waterAnim + i*0.7)*15;
+    const wy = H*0.52 + i*22 + Math.sin(state.waterAnim*0.8 + i)*5;
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.lineTo(wx+28, wy);
+    ctx.stroke();
+  }
+
+  // Ripples
+  state.ripples = state.ripples.filter(r => r.alpha > 0);
+  state.ripples.forEach(r => {
+    r.r += 1.5; r.alpha -= 0.012;
+    ctx.strokeStyle = `rgba(255,255,255,${r.alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI*2);
+    ctx.stroke();
+  });
+
+  // Fishing rod
+  drawRod(ctx);
+
+  // Bobber & line
+  if(["casting","waiting","hooking","reeling"].includes(state.phase)){
+    drawLineAndBobber(ctx);
+  }
+
+  // Angler character
+  drawAngler(ctx);
+
+  // Underwater fish silhouette during reeling
+  if(state.phase === "reeling" && state.activeFish){
+    drawUnderwaterFish(ctx);
+  }
+}
+
+function drawCloud(ctx, x, y, scale) {
+  ctx.fillStyle = "rgba(255,255,255,0.82)";
+  ctx.beginPath();
+  ctx.arc(x, y, 20*scale, 0, Math.PI*2);
+  ctx.arc(x+22*scale, y-6*scale, 16*scale, 0, Math.PI*2);
+  ctx.arc(x+42*scale, y, 18*scale, 0, Math.PI*2);
+  ctx.arc(x+20*scale, y+8*scale, 14*scale, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawRod(ctx) {
+  // Rod stick
+  ctx.strokeStyle = "#6b3a1f";
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(ROD_X - 30, ROD_Y + 20);
+  ctx.lineTo(ROD_X + 20, ROD_Y - 40);
+  ctx.stroke();
+
+  // Rod tip highlight
+  ctx.strokeStyle = "#a0522d";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(ROD_X + 5, ROD_Y - 25);
+  ctx.lineTo(ROD_X + 20, ROD_Y - 40);
+  ctx.stroke();
+}
+
+function drawAngler(ctx) {
+  // Body
+  ctx.fillStyle = "#4a6fa5";
+  ctx.fillRect(ROD_X - 65, ROD_Y - 5, 28, 38);
+  // Head
+  ctx.fillStyle = "#f5c5a3";
+  ctx.beginPath();
+  ctx.arc(ROD_X - 51, ROD_Y - 18, 14, 0, Math.PI*2);
+  ctx.fill();
+  // Hat
+  ctx.fillStyle = "#8b4513";
+  ctx.fillRect(ROD_X - 64, ROD_Y - 32, 30, 6);
+  ctx.fillRect(ROD_X - 60, ROD_Y - 42, 22, 12);
+  // Arm holding rod
+  ctx.fillStyle = "#f5c5a3";
+  ctx.fillRect(ROD_X - 50, ROD_Y + 2, 30, 8);
+  // Legs
+  ctx.fillStyle = "#2c3e50";
+  ctx.fillRect(ROD_X - 63, ROD_Y + 33, 10, 20);
+  ctx.fillRect(ROD_X - 48, ROD_Y + 33, 10, 20);
+}
+
+function drawLineAndBobber(ctx) {
+  // Fishing line
+  ctx.strokeStyle = "rgba(255,255,255,0.7)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(ROD_X + 20, ROD_Y - 40);
+  ctx.lineTo(state.bobberX, state.bobberY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Bobber
+  const bobY = state.bobberY + (state.phase==="waiting" ? Math.sin(Date.now()*0.002)*3 : 0);
+  // Stem
+  ctx.strokeStyle = "#555";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(state.bobberX, bobY - 12);
+  ctx.lineTo(state.bobberX, bobY + 2);
+  ctx.stroke();
+  // Top (red)
+  ctx.fillStyle = (state.phase==="hooking") ? "#ffcc00" : "#e74c3c";
+  ctx.beginPath();
+  ctx.arc(state.bobberX, bobY, 7, Math.PI, 0);
+  ctx.fill();
+  // Bottom (white)
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(state.bobberX, bobY, 7, 0, Math.PI);
+  ctx.fill();
+  // Outline
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(state.bobberX, bobY, 7, 0, Math.PI*2);
+  ctx.stroke();
+
+  // Dipping animation
+  if(state.phase==="hooking"){
+    for(let i=0;i<3;i++){
+      state.ripples.push({ x:state.bobberX, y:bobY+4, r:5+i*3, alpha:0.5 });
+    }
+  }
+}
+
+function drawUnderwaterFish(ctx) {
+  const progress = state.reelProgress / 100;
+  const fx = state.bobberX + (ROD_X + 20 - state.bobberX) * progress;
+  const fy = state.bobberY + (ROD_Y - 40 - state.bobberY) * progress;
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.font = "28px serif";
+  ctx.textAlign = "center";
+  ctx.fillText(state.activeFish.emoji, fx, fy + 20);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════
+//  POWER BAR ANIMATION
+// ═══════════════════════════════════════════════
+let powerInterval = null;
+
+function startPowerMeter() {
+  state.power = 0;
+  state.powerDir = 1;
+  document.getElementById("power-wrap").style.display = "block";
+  powerInterval = setInterval(() => {
+    state.power += state.powerDir * 3;
+    if(state.power >= 100){ state.power = 100; state.powerDir = -1; }
+    if(state.power <= 0)  { state.power = 0;   state.powerDir =  1; }
+    document.getElementById("power-bar").style.width = state.power + "%";
+  }, 30);
+}
+
+function stopPowerMeter() {
+  clearInterval(powerInterval);
+  document.getElementById("power-wrap").style.display = "none";
+}
+
+// ═══════════════════════════════════════════════
+//  FISH GENERATOR
+// ═══════════════════════════════════════════════
+function generateFish() {
+  const roll = Math.random();
+  let cumulative = 0;
+  for(const fish of FISH_DB) {
+    cumulative += fish.rarity;
+    if(roll <= cumulative) {
+      const weight = +(fish.weightMin + Math.random()*(fish.weightMax - fish.weightMin)).toFixed(2);
+      const value  = Math.round(fish.value * (0.8 + weight/fish.weightMax * 0.4));
+      return { ...fish, weight, value };
+    }
+  }
+  return { ...FISH_DB[0], weight:0.2, value:5 };
+}
+
+// ═══════════════════════════════════════════════
+//  FISHING STATE MACHINE
+// ═══════════════════════════════════════════════
+function startCasting() {
+  if(state.phase !== "idle") return;
+  state.phase = "charging";
+  document.getElementById("cast-btn").textContent = "📍 RELEASE!";
+  document.getElementById("cast-btn").classList.replace("btn-green","btn-orange");
+  startPowerMeter();
+}
+
+function releaseCast() {
+  if(state.phase !== "charging") return;
+  stopPowerMeter();
+  state.phase = "casting";
+  document.getElementById("cast-btn").style.display = "none";
+
+  // Calculate bobber landing based on power
+  const power = state.power / 100;
+  state.bobberX = W*0.5 + power * W*0.3;
+  state.bobberY = H*0.52 + Math.random()*30;
+
+  addRipple(state.bobberX, state.bobberY);
+  showStatus("🎣 Waiting for a bite...", 1800);
+
+  const delay = CONFIG.biteDelayMin + Math.random() * (CONFIG.biteDelayMax - CONFIG.biteDelayMin);
+  state.biteTimer = setTimeout(triggerBite, delay);
+  state.phase = "waiting";
+  document.getElementById("cast-btn").textContent = "🎣 CAST";
+  document.getElementById("cast-btn").classList.replace("btn-orange","btn-green");
+}
+
+function triggerBite() {
+  if(state.phase !== "waiting") return;
+  state.phase = "hooking";
+  state.activeFish = generateFish();
+  showStatus("🐟 Something's biting! HOOK IT!", 0);
+  addRipple(state.bobberX, state.bobberY + 4);
+
+  // Bobber dip
+  state.bobberY += 12;
+
+  document.getElementById("cast-btn").style.display = "block";
+  document.getElementById("cast-btn").textContent = "🪝 HOOK!";
+  document.getElementById("cast-btn").classList.replace("btn-green","btn-orange");
+
+  // Miss window
+  state.hookTimeout = setTimeout(() => {
+    if(state.phase === "hooking"){
+      fishEscape("It got away! 😢");
+    }
+  }, CONFIG.hookWindowMs);
+}
+
+function hookFish() {
+  if(state.phase !== "hooking") return;
+  clearTimeout(state.hookTimeout);
+  state.phase = "reeling";
+  state.tension = 50;
+  state.reelProgress = 0;
+
+  document.getElementById("cast-btn").style.display = "none";
+  document.getElementById("reel-btn").style.display = "block";
+  document.getElementById("reel-panel").style.display = "block";
+  document.getElementById("fish-caught-name").textContent =
+    state.activeFish.emoji + " " + state.activeFish.name + " on the line!";
+
+  hideStatus();
+  startReelMechanics();
+}
+
+// ═══════════════════════════════════════════════
+//  REEL MECHANICS
+// ═══════════════════════════════════════════════
+let reelLoop = null;
+
+function startReelMechanics() {
+  const fish = state.activeFish;
+  const diffFactor = fish.difficulty;
+
+  reelLoop = setInterval(() => {
+    if(state.phase !== "reeling") { clearInterval(reelLoop); return; }
+
+    if(state.isReeling) {
+      state.tension += CONFIG.tensionBuildRate * (1 + diffFactor * 0.5);
+      state.reelProgress += CONFIG.reelProgressPerFrame * (1 - diffFactor * 0.3);
+    } else {
+      state.tension -= CONFIG.tensionDecayRate;
+      state.reelProgress -= 0.3 * diffFactor;
+    }
+
+    // Fish fights — random tension spikes
+    if(Math.random() < 0.015 * diffFactor * 3) {
+      state.tension += 8 + Math.random() * 10 * diffFactor;
+    }
+
+    state.tension       = Math.max(0, Math.min(100, state.tension));
+    state.reelProgress  = Math.max(0, Math.min(100, state.reelProgress));
+
+    // Update tension bar
+    const fill = document.getElementById("tension-fill");
+    fill.style.width = state.tension + "%";
+    fill.style.background = state.tension > 75 ? "#e05c5c"
+                          : state.tension > 45 ? "#f5c842"
+                          : "#5cb85c";
+
+    // Check win/lose
+    if(state.tension >= CONFIG.tensionBreakThreshold) {
+      clearInterval(reelLoop);
+      fishEscape("Line snapped! 💔");
+    } else if(state.tension <= CONFIG.tensionEscapeThreshold && !state.isReeling) {
+      clearInterval(reelLoop);
+      fishEscape("It swam away... 🏃");
+    } else if(state.reelProgress >= 100) {
+      clearInterval(reelLoop);
+      catchFish();
+    }
+  }, 50);
+}
+
+function catchFish() {
+  state.phase = "caught";
+  const fish = state.activeFish;
+
+  document.getElementById("reel-btn").style.display = "none";
+  document.getElementById("reel-panel").style.display = "none";
+  document.getElementById("cast-btn").style.display = "none";
+
+  // Show catch popup
+  document.getElementById("popup-emoji").textContent = fish.emoji;
+  document.getElementById("popup-name").textContent  = fish.name;
+  document.getElementById("popup-info").textContent  = `Weight: ${fish.weight} kg | ${fish.name}`;
+  document.getElementById("popup-worth").textContent = `+${fish.value} 🪙`;
+
+  const popup = document.getElementById("catch-popup");
+  popup.classList.add("active");
+
+  addRipple(state.bobberX, state.bobberY);
+}
+
+function confirmCatch() {
+  const fish = state.activeFish;
+  state.inventory.push(fish);
+  state.coins += fish.value;
+  updateCoinDisplay();
+  renderInventory();
+
+  document.getElementById("catch-popup").classList.remove("active");
+  resetToIdle("🎉 Nice catch! Cast again?");
+}
+
+function fishEscape(msg) {
+  state.phase = "idle";
+  document.getElementById("reel-btn").style.display = "none";
+  document.getElementById("reel-panel").style.display = "none";
+  clearTimeout(state.biteTimer);
+  showStatus(msg, 2200);
+
+  setTimeout(() => {
+    document.getElementById("cast-btn").textContent = "🎣 CAST";
+    document.getElementById("cast-btn").classList.replace("btn-orange","btn-green");
+    document.getElementById("cast-btn").style.display = "block";
+    state.phase = "idle";
+  }, 500);
+}
+
+function resetToIdle(msg) {
+  state.phase = "idle";
+  state.activeFish = null;
+  state.bobberX = 0; state.bobberY = 0;
+  document.getElementById("cast-btn").textContent = "🎣 CAST";
+  document.getElementById("cast-btn").classList.replace("btn-orange","btn-green");
+  document.getElementById("cast-btn").style.display = "block";
+  showStatus(msg, 2200);
+}
+
+// ═══════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════
+let statusTimer = null;
+function showStatus(msg, duration) {
+  const el = document.getElementById("status-msg");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(statusTimer);
+  if(duration > 0) statusTimer = setTimeout(hideStatus, duration);
+}
+function hideStatus() {
+  document.getElementById("status-msg").classList.remove("show");
+}
+
+function addRipple(x, y) {
+  for(let i=0;i<4;i++) state.ripples.push({ x, y: y+4, r:3+i*4, alpha:0.6 });
+}
+
+function updateCoinDisplay() {
+  document.getElementById("coin-count").textContent = state.coins;
+}
+
+// ═══════════════════════════════════════════════
+//  INVENTORY
+// ═══════════════════════════════════════════════
+function renderInventory() {
+  const list = document.getElementById("inv-list");
+  list.innerHTML = "";
+  if(state.inventory.length === 0){
+    list.innerHTML = "<li style='color:#aaa;font-size:13px'>No fish yet!</li>";
+    document.getElementById("inv-total").textContent = "";
+    return;
+  }
+  let total = 0;
+  state.inventory.forEach(f => {
+    total += f.value;
+    const li = document.createElement("li");
+    li.innerHTML = `<span>${f.emoji} ${f.name} <small>(${f.weight}kg)</small></span>
+                    <span class="fish-val">${f.value}🪙</span>`;
+    list.appendChild(li);
+  });
+  document.getElementById("inv-total").textContent = `Total: ${state.inventory.length} fish · ${total} 🪙`;
+}
+
+function sellAll() {
+  if(state.inventory.length === 0) return;
+  const total = state.inventory.reduce((s,f) => s+f.value, 0);
+  state.coins += total;
+  state.inventory = [];
+  updateCoinDisplay();
+  renderInventory();
+  showStatus(`💰 Sold! Earned ${total} coins!`, 2000);
+}
+
+// ═══════════════════════════════════════════════
+//  SHOP
+// ═══════════════════════════════════════════════
+function renderShop() {
+  const container = document.getElementById("upgrade-list");
+  container.innerHTML = "";
+
+  UPGRADES.forEach(upg => {
+    const currentLvl = state.upgradeLevels[upg.id];
+    const maxed = currentLvl >= upg.levels.length;
+    const nextLvl = upg.levels[currentLvl];
+
+    const div = document.createElement("div");
+    div.className = "upgrade-item";
+    div.innerHTML = `
+      <h3>${upg.emoji} ${upg.name} ${currentLvl > 0 ? "⭐".repeat(currentLvl) : ""}</h3>
+      <p>${upg.desc}</p>
+      ${maxed
+        ? `<p style="color:#5cb85c;font-weight:700">✅ MAX LEVEL</p>`
+        : `<p class="cost">Cost: ${nextLvl.cost} 🪙 — ${nextLvl.label}</p>
+           <small style="color:#888">${nextLvl.bonus}</small>
+           <button class="btn btn-coin upgrade-btn" onclick="buyUpgrade('${upg.id}')">Buy</button>`
+      }
+    `;
+    container.appendChild(div);
+  });
+}
+
+function buyUpgrade(id) {
+  const upg = UPGRADES.find(u => u.id === id);
+  const lvl = state.upgradeLevels[id];
+  if(lvl >= upg.levels.length) return;
+  const cost = upg.levels[lvl].cost;
+  if(state.coins < cost){ showStatus("Not enough coins! 🪙", 1500); return; }
+  state.coins -= cost;
+  state.upgradeLevels[id]++;
+  upg.apply(state.upgradeLevels[id]);
+  updateCoinDisplay();
+  renderShop();
+  showStatus(`✅ ${upg.name} upgraded!`, 1500);
+}
+
+// ═══════════════════════════════════════════════
+//  PANEL TOGGLES
+// ═══════════════════════════════════════════════
+function togglePanel(id) {
+  const all = ["inv-panel","shop-panel"];
+  all.forEach(p => {
+    if(p === id) document.getElementById(p).classList.toggle("active");
+    else document.getElementById(p).classList.remove("active");
+  });
+  if(id === "inv-panel") renderInventory();
+  if(id === "shop-panel") renderShop();
+}
+
+// ═══════════════════════════════════════════════
+//  EVENT LISTENERS
+// ═══════════════════════════════════════════════
+const castBtn = document.getElementById("cast-btn");
+castBtn.addEventListener("mousedown", () => {
+  if(state.phase === "idle")    startCasting();
+  else if(state.phase === "charging") releaseCast();
+  else if(state.phase === "hooking")  hookFish();
+});
+castBtn.addEventListener("touchstart", e => {
+  e.preventDefault();
+  castBtn.dispatchEvent(new Event("mousedown"));
+}, { passive:false });
+
+const reelBtn = document.getElementById("reel-btn");
+reelBtn.addEventListener("mousedown",  () => state.isReeling = true);
+reelBtn.addEventListener("mouseup",    () => state.isReeling = false);
+reelBtn.addEventListener("mouseleave", () => state.isReeling = false);
+reelBtn.addEventListener("touchstart", e => { e.preventDefault(); state.isReeling = true; }, {passive:false});
+reelBtn.addEventListener("touchend",   e => { e.preventDefault(); state.isReeling = false;}, {passive:false});
+
+document.getElementById("popup-ok").addEventListener("click", confirmCatch);
+document.getElementById("sell-all-btn").addEventListener("click", sellAll);
+document.getElementById("inv-btn").addEventListener("click",  () => togglePanel("inv-panel"));
+document.getElementById("shop-btn").addEventListener("click", () => togglePanel("shop-panel"));
+
+// Keyboard support
+window.addEventListener("keydown", e => {
+  if(e.code === "Space"){
+    e.preventDefault();
+    if(state.phase === "idle")     startCasting();
+    else if(state.phase === "charging") releaseCast();
+    else if(state.phase === "hooking")  hookFish();
+    else if(state.phase === "reeling")  state.isReeling = true;
+  }
+  if(e.code === "Enter" && state.phase === "caught") confirmCatch();
+});
+window.addEventListener("keyup", e => {
+  if(e.code === "Space" && state.phase === "reeling") state.isReeling = false;
+});
+
+// ═══════════════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════════════
+function gameLoop() {
+  drawScene();
+  requestAnimationFrame(gameLoop);
+}
+
+// INIT
+showStatus("🌊 Welcome to Cozy Cove! Press CAST to start.", 3500);
+renderInventory();
+gameLoop();
+</script>
+</body>
+</html>
