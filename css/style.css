@@ -661,19 +661,7 @@
       #game-wrapper {
         overflow: hidden;
       }
-      #gameCanvas {
-        width: auto !important;
-        height: 100% !important;
-        min-width: 100% !important;
-        max-height: none !important;
-        aspect-ratio: 800 / 520 !important;
-        flex-shrink: 1 !important;
-        flex-grow: 1 !important;
-        /* Left-align so fisherman at x=25% stays in frame */
-        align-self: stretch !important;
-        object-position: left center;
-        transform-origin: left center;
-      }
+      
 
       /* Portrait: narrower, height capped well clear of CAST button */
       #char-panel {
